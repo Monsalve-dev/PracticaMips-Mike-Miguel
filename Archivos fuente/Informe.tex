@@ -1,0 +1,238 @@
+\documentclass[a4paper, 12pt]{article}
+\usepackage[spanish]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{geometry}
+\usepackage{array}
+\usepackage{booktabs}
+\geometry{margin=2.5cm}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mips}{
+    backgroundcolor=\color{backcolour},
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    numbers=left,
+    numbersep=5pt,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=4,
+    frame=single
+}
+
+\title{Práctica de Laboratorio 1: Secuencia de Fibonacci en MIPS32}
+\author{Nombre del Estudiante}
+\date{Julio 2025}
+
+\begin{document}
+
+\maketitle
+
+\section{Implementación de recursividad en MIPS32}
+\begin{itemize}
+    \item \textbf{Mecanismo:} Llamadas anidadas mediante \texttt{jal} con gestión manual de contexto
+    \item \textbf{Rol de la pila (\texttt{\$sp}):}
+    \begin{itemize}
+        \item Almacena dirección de retorno (\texttt{\$ra})
+        \item Preserva argumentos (ej. \texttt{\$a0} con valor actual de \texttt{n})
+        \item Guarda resultados intermedios
+        \item Maneja crecimiento dinámico: \texttt{addi \$sp, \$sp, -12} (reserva) y \texttt{addi \$sp, \$sp, 12} (liberación)
+    \end{itemize}
+\end{itemize}
+
+\section{Riesgos de desbordamiento y mitigación}
+\begin{table}[h]
+    \centering
+    \begin{tabular}{|l|l|l|}
+        \hline
+        \textbf{Riesgo} & \textbf{Causa} & \textbf{Mitigación} \\
+        \hline
+        Stack overflow & Recursión profunda (\texttt{n} > 1000) & Limitar \texttt{n} ≤ 40 \\
+        \hline
+        Integer overflow & \texttt{fib(47)} > $2^{31}-1$ & Validar \texttt{n} ≤ 46 \\
+        \hline
+        Heap overflow & Memoria dinámica con \texttt{n} grande & Liberar memoria con \texttt{sbrk} negativo \\
+        \hline
+    \end{tabular}
+\end{table}
+
+\section{Comparación: Iterativo vs. Recursivo}
+\begin{table}[h]
+    \centering
+    \begin{tabular}{|l|c|c|}
+        \hline
+        \textbf{Característica} & \textbf{Iterativo} & \textbf{Recursivo} \\
+        \hline
+        Complejidad temporal & $O(n)$ & $O(2^n)$ \\
+        \hline
+        Uso memoria & Heap: $4(n+1)$ bytes & Pila: $12n$ bytes \\
+        \hline
+        Registros usados & Temporales (\texttt{\$tX}) & Preservados (\texttt{\$sX}) \\
+        \hline
+        Legibilidad & Más extenso & Similar a definición matemática \\
+        \hline
+    \end{tabular}
+\end{table}
+
+\section{Diferencias con ejemplos académicos}
+\begin{itemize}
+    \item \textbf{Código real incluye:}
+    \begin{itemize}
+        \item Validación de entrada (\texttt{n} ≥ 0)
+        \item Gestión de memoria dinámica (\texttt{sbrk})
+        \item Mensajes de error específicos
+        \item Interfaz de usuario completa (prompts, formatos)
+        \item Visualización de secuencia completa (iterativo)
+    \end{itemize}
+    \item \textbf{Ejemplos académicos:} Focalizados en algoritmo básico sin manejo de errores
+\end{itemize}
+
+\section{Tutorial de Ejecución Paso a Paso en MARS}
+\subsection{Preparación Inicial}
+\begin{enumerate}
+    \item Descargar e instalar MARS (versión 4.5 o superior)
+    \item Configurar:
+    \begin{itemize}
+        \item \texttt{Settings → Memory Configuration → Compact, Data at Address 0}
+        \item \texttt{Settings → Delayed Branches → Disabled}
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Ejecución del Fibonacci Iterativo (n=5)}
+\begin{enumerate}
+    \item \textbf{Cargar y ensamblar:}
+        \begin{itemize}
+            \item Abrir \texttt{Fibonacci\_Iterativo.asm}
+            \item Ensamblar (F3)
+        \end{itemize}
+    
+    \item \textbf{Flujo de ejecución:}
+        \begin{enumerate}
+            \item \texttt{main}: Muestra prompt y lee entrada (ingresar 5)
+            \item Reserva de memoria:
+                \begin{itemize}
+                    \item \texttt{addi \$t0, \$s1, 1}: \$t0 = 6 (n+1)
+                    \item \texttt{sll \$a0, \$t0, 2}: \$a0 = 24 bytes
+                    \item \texttt{li \$v0, 9}: syscall sbrk → \$s2 = dirección base (ej: 0x10040000)
+                \end{itemize}
+            \item \texttt{fib\_array}:
+                \begin{itemize}
+                    \item \texttt{sw \$zero, 0(\$s2)}: fib[0] = 0
+                    \item \texttt{li \$t0, 1; sw \$t0, 4(\$s2)}: fib[1] = 1
+                    \item Bucle (i=2 a 5):
+                        \begin{table}[h]
+                            \centering
+                            \begin{tabular}{|c|c|c|}
+                                \hline
+                                \textbf{i} & \textbf{Dirección} & \textbf{Valor} \\
+                                \hline
+                                2 & 0x10040008 & 1 (0+1) \\
+                                \hline
+                                3 & 0x1004000C & 2 (1+1) \\
+                                \hline
+                                4 & 0x10040010 & 3 (1+2) \\
+                                \hline
+                                5 & 0x10040014 & 5 (2+3) \\
+                                \hline
+                            \end{tabular}
+                        \end{table}
+                \end{itemize}
+            \item Salida:
+                \begin{itemize}
+                    \item Muestra: "El número Fibonacci F(5) es: 5"
+                    \item Secuencia completa: "0 1 1 2 3 5"
+                \end{itemize}
+        \end{enumerate}
+\end{enumerate}
+
+\subsection{Ejecución del Fibonacci Recursivo (n=3)}
+\begin{enumerate}
+    \item \textbf{Cargar y ensamblar:} \texttt{Fibonacci\_Recursivo.asm} (F3)
+    \item \textbf{Flujo de ejecución:}
+        \begin{enumerate}
+            \item \texttt{main}: Lee n=3, llama a \texttt{fib\_rec}
+            \item \textbf{Pila durante ejecución:}
+                \begin{table}[h]
+                    \centering
+                    \begin{tabular}{|c|c|c|c|}
+                        \hline
+                        \textbf{Llamada} & \texttt{\$ra} & \texttt{\$a0} & \textbf{Resultado} \\
+                        \hline
+                        fib\_rec(3) & 0x00400034 & 3 & ? \\
+                        \hline
+                        fib\_rec(2) & 0x004000A8 & 2 & ? \\
+                        \hline
+                        fib\_rec(1) & 0x004000A8 & 1 & 1 \\
+                        \hline
+                        fib\_rec(0) & - & 0 & 0 \\
+                        \hline
+                    \end{tabular}
+                \end{table}
+            \item \textbf{Desarrollo:}
+                \begin{itemize}
+                    \item \texttt{fib\_rec(3)}: Guarda \$ra=0x00400034, \$a0=3. Llama a fib\_rec(2).
+                    \item \texttt{fib\_rec(2)}: Guarda \$ra=0x004000A8, \$a0=2. Llama a fib\_rec(1) y fib\_rec(0).
+                    \item \texttt{fib\_rec(1)}: Retorna 1 → guardado en pila de fib\_rec(2).
+                    \item \texttt{fib\_rec(0)}: Retorna 0.
+                    \item \texttt{fib\_rec(2)}: Calcula 1+0=1 → retorna 1.
+                    \item \texttt{fib\_rec(3)}: Recupera resultado fib(2)=1, calcula fib(1)=1 → 1+1=2 → retorna 2.
+                \end{itemize}
+            \item \texttt{main}: Recibe 2, muestra "F(3) es: 2"
+        \end{enumerate}
+\end{enumerate}
+
+\section{Justificación de enfoque}
+\textbf{Iterativo recomendado cuando:}
+\begin{itemize}
+    \item $n > 30$ (evita stack overflow)
+    \item Eficiencia crítica ($O(n)$ vs $O(2^n)$)
+    \item Memoria limitada
+\end{itemize}
+
+\textbf{Recursivo recomendado cuando:}
+\begin{itemize}
+    \item $n \leq 30$ y claridad > rendimiento
+    \item Propósitos educativos
+\end{itemize}
+
+\textbf{Conclusión:} Para MIPS32 el enfoque iterativo es superior en estabilidad y rendimiento.
+
+\section{Análisis de resultados}
+\begin{itemize}
+    \item \textbf{Límites prácticos:}
+    \begin{itemize}
+        \item Recursivo: $n=40$ tarda >10s
+        \item Iterativo: $n=10^6$ en <1s (teórico)
+    \end{itemize}
+    \item \textbf{Consumo memoria:}
+    \begin{itemize}
+        \item Recursivo: $\approx$ 12n bytes (pila)
+        \item Iterativo: $4(n+1)$ bytes (heap)
+    \end{itemize}
+    \item \textbf{Optimizaciones identificadas:}
+    \begin{itemize}
+        \item Iterativo: Almacenar sólo últimos 2 valores (reduce memoria a O(1))
+        \item Recursivo: Memoization (caché de resultados)
+    \end{itemize}
+\end{itemize}
+
+\section*{Conclusiones}
+La implementación iterativa es preferible para aplicaciones reales en MIPS32 por su eficiencia y estabilidad, mientras la recursiva sirve como herramienta educativa para demostrar el manejo de pila en llamadas anidadas.
+
+\end{document}
